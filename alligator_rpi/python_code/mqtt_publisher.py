@@ -4,7 +4,7 @@ from Adafruit_IO import MQTTClient
 
 # See https://io.adafruit.com, https://accounts.adafruit.com
 ADAFRUIT_IO_USERNAME = 'd721559'
-ADAFRUIT_IO_KEY      = '?'
+ADAFRUIT_IO_KEY      = ???
 
 def connected(client):
     # Connected function will be called when the client is connected to Adafruit IO.
