@@ -15,6 +15,11 @@ A segunda versão (em construção), vai utilizar o ESP8266 (ESP-12) como unidad
 - esptool.py - Python script para gravar o firmware (a.k.a flashing).
 - ESPlorer - Programa para fazer upload de código (sketch) para o microcontrolator (upload != flashing)
 
+# Comandos
+- Flashing de firmware
+	esptool.py --port <serial-port-of-ESP8266> write_flash -fm qio 0x00000 <nodemcu-firmware>.bin
+
+
 # Links úteis
 
 - Ferramenta para upload de código LUA para o ESP (roda em Java 7): https://esp8266.ru/esplorer/
