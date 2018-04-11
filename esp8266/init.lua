@@ -13,13 +13,12 @@ M = {}
 local adc = require("adc_reader")
 local dht = require("dht11")
 local mqttcli = require("adafruit_io_mqtt")
---print(dht.readdht11())
+
+
 local STARTUP_MAX_ATTEMPTS = 5
 
-local startup_attempts = 0
 
-
-
+M.startup_attempts = 0
 M.selftest_ok = false
 
 
@@ -42,12 +41,12 @@ function selftest()
 
         print("[SELFTEST] FINISH, OK="..tostring(M.selftest_ok))
 
-        if M.selftest_ok or startup_attempts > STARTUP_MAX_ATTEMPTS then
-            print("unregistering self test alarm. attempts="..startup_attempts)
+        if M.selftest_ok or M.startup_attempts > STARTUP_MAX_ATTEMPTS then
+            print("unregistering self test alarm. attempts="..M.startup_attempts)
             tmr.unregister(1)
         end
 
-        startup_attempts = startup_attempts+1
+        M.startup_attempts = M.startup_attempts+1
         
     end)
 end
@@ -60,7 +59,7 @@ function main()
         if M.selftest_ok ~= true then
             print("[MAIN] Delaying execution. self_test is not ok")
             
-            if startup_attempts > STARTUP_MAX_ATTEMPTS then
+            if M.startup_attempts > STARTUP_MAX_ATTEMPTS then
                 print("[MAIN] Aborting execution. Max. attempts reached. startup_attempts="..startup_attempts)
                 tmr.unregister(2)
             end
@@ -72,6 +71,19 @@ function main()
         print("[MAIN] Ready to start code loop")
 
         --tmr code loop goes here
+        tmr.alarm(3, (15 * 1000), tmr.ALARM_AUTO, function()
+            print("[LOOP] Collecting values")
+
+            a0_value = adc.read_A0_volt()
+            temp, humi = dht.readdht11()
+
+            mqttcli.pub("d721559/feeds/dht11-temp", temp)
+            mqttcli.pub("d721559/feeds/dht11-hum", humi)
+            mqttcli.pub("d721559/feeds/bat-volt", a0_value)
+            
+            print("[LOOP] End")
+        end)
+        --
 
         tmr.unregister(2)
     
