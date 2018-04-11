@@ -1,8 +1,10 @@
-r1=10 * 1000
-r2=2.3 * 1000
+local M = {}
+
+local r1=10 * 1000
+local r2=2.3 * 1000
 
 -- There is an Voltage Divider attached to A0
-function read_A0_volt()
+function M.read_A0_volt()
     print("[ADC] starting ADC read")
     
     value=adc.read(0)
@@ -14,5 +16,5 @@ function read_A0_volt()
     return vIn
 end
 
-
+return M
 --print("[DEBUG] A0 voltage = "..read_A0_volt())

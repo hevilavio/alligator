@@ -1,9 +1,11 @@
+local M = {}
+
 dht11Pin=6
 TIMEOUT_ERR=-10,-11
 CHECKSUM_ERR=-20,-21
 
 
-function readdht11()
+function M.readdht11()
     status, temp, humi, temp_dec, humi_dec = dht.read11(dht11Pin)
     if status == dht.OK then
         -- Float firmware using this example
@@ -19,6 +21,5 @@ function readdht11()
     end
 end
 
-temp, humi = readdht11()
-print("[DEBUG] DHT11 temp="..temp..", humi="..humi)
+return M
 
