@@ -3,18 +3,19 @@ TODO:
 
 - random device_id on mqtt connection (same device id receives a 'disconnection' event when it re-connect
 - retry_attempt no mqtt connection (try 5x before giving up)
-
+- power management (sleep if voltave < 3.0v?)
+- logging to flash memory
+- led blink
+- led error code
 
 --]]
+local M = {}
 
-
-
-M = {}
 local adc = require("adc_reader")
 local dht = require("dht11")
 local mqttcli = require("adafruit_io_mqtt")
-
-
+local ledhelper = require("led_helper")
+ 
 local STARTUP_MAX_ATTEMPTS = 5
 
 
@@ -71,6 +72,8 @@ function main()
         print("[MAIN] Ready to start code loop")
 
         --tmr code loop goes here
+        ledhelper.normal_operation()
+        
         tmr.alarm(3, (15 * 1000), tmr.ALARM_AUTO, function()
             print("[LOOP] Collecting values")
 
@@ -96,6 +99,7 @@ end
 print("[STARTUP] Scheduling processes")
 
 mqttcli.init_client()
+ledhelper.startup()
 
 
 selftest()
