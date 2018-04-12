@@ -5,7 +5,6 @@ TODO:
 - retry_attempt no mqtt connection (try 5x before giving up)
 - power management (sleep if voltave < 3.0v?)
 - logging to flash memory
-- led blink
 - led error code
 
 --]]
@@ -17,6 +16,12 @@ local mqttcli = require("adafruit_io_mqtt")
 local ledhelper = require("led_helper")
  
 local STARTUP_MAX_ATTEMPTS = 5
+
+local TMRID_SLEEP=6
+local V_BAT_MIN = 3.4
+local LOW_VOLTAGE_SLEEP_SEC = 600
+
+local triggered_low_voltage_alarm = 0
 
 
 M.startup_attempts = 0
@@ -52,6 +57,35 @@ function selftest()
     end)
 end
 
+--[[
+    Verify if the battery voltage is enought to keep running. Case its not, set
+    the ESP into deep sleep mode
+--]]
+function verify_operating_voltage(v)
+    print("[VOLT] verify_operating_voltage, current is "..v.."V, threshold is "..V_BAT_MIN.."V")
+
+    if v < V_BAT_MIN then
+        print("[VOLT] Voltage is too low. Scheduling sleep mode for "..LOW_VOLTAGE_SLEEP_SEC.."s")
+
+        
+        print("[VOLT] Setting ON low voltage alarm")
+        mqttcli.pub("d721559/feeds/low-voltage-alarm", "ON")
+        triggered_low_voltage_alarm = 1
+        ledhelper.blink_pattern_quick(200)
+        
+        tmr.alarm(TMRID_SLEEP, 5000, tmr.ALARM_SINGLE, function()
+        
+            node.dsleep(LOW_VOLTAGE_SLEEP_SEC * 1000 * 1000)
+        end)
+        
+    elseif triggered_low_voltage_alarm == 0 then
+        
+        print("[VOLT] Setting OFF low voltage alarm")
+        triggered_low_voltage_alarm = 1
+        mqttcli.pub("d721559/feeds/low-voltage-alarm", "OFF")
+    end
+end
+
 function main()
 
     print("[MAIN] SCHEDULED")
@@ -68,12 +102,14 @@ function main()
             return
         end
 
-        
-        print("[MAIN] Ready to start code loop")
 
-        --tmr code loop goes here
-        ledhelper.normal_operation()
+        verify_operating_voltage(adc.read_A0_volt())
+
+        print("[MAIN] Ready to start code loop")
         
+        --tmr code loop goes here
+
+        ledhelper.normal_operation()
         tmr.alarm(3, (15 * 1000), tmr.ALARM_AUTO, function()
             print("[LOOP] Collecting values")
 
@@ -84,6 +120,9 @@ function main()
             mqttcli.pub("d721559/feeds/dht11-hum", humi)
             mqttcli.pub("d721559/feeds/bat-volt", a0_value)
             
+            
+            verify_operating_voltage(a0_value)
+
             print("[LOOP] End")
         end)
         --
@@ -98,10 +137,11 @@ end
 
 print("[STARTUP] Scheduling processes")
 
+
+print("[STARTUP] SLEEPING")
+
 mqttcli.init_client()
 ledhelper.startup()
-
-
 selftest()
 main()
 
