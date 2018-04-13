@@ -10,7 +10,6 @@ local TOPIC_BASE = "d721559"
 
 local TOPIC_TEMP = TOPIC_BASE.."/feeds/dht11-temp"
 
-
 local INIT_CODE_CONNECTED = 0
 local INIT_CODE_DISCONNECTED = 1
 local INIT_CODE_NOT_INITIALIZED = 1

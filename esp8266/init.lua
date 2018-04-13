@@ -2,8 +2,6 @@
 TODO:
 
 - random device_id on mqtt connection (same device id receives a 'disconnection' event when it re-connect
-- retry_attempt no mqtt connection (try 5x before giving up)
-- power management (sleep if voltave < 3.0v?)
 - logging to flash memory
 - led error code
 
@@ -12,25 +10,19 @@ local M = {}
 
 local adc = require("adc_reader")
 local dht = require("dht11")
-local mqttcli = require("adafruit_io_mqtt")
+local mqttcli = require("mqtt_connector")
 local ledhelper = require("led_helper")
+local C = require("constants")
  
-local STARTUP_MAX_ATTEMPTS = 5
-
-local TMRID_SLEEP=6
-local V_BAT_MIN = 3.4
-local LOW_VOLTAGE_SLEEP_SEC = 600
-
 local triggered_low_voltage_alarm = 0
-
-
-M.startup_attempts = 0
-M.selftest_ok = false
+local startup_attempts = 0
+local selftest_ok = false
 
 
 function selftest()
     print("[SELFTEST] SCHEDULED")
-    tmr.alarm(1,3000,tmr.ALARM_AUTO,function()
+    
+    tmr.alarm(C.TMRID_SELFTEST_FUNCTION, C.SELFTEST_SCHEDULE_INTERVAL_MS, tmr.ALARM_AUTO, function()
         print("[SELFTEST] START")
 
         a0_value = adc.read_A0_volt()
@@ -43,16 +35,16 @@ function selftest()
         
         print("[SELFTEST] MQTT INIT CODE = "..mqtt_init_code)
     
-        M.selftest_ok = (a0_value > 0) and (temp > 0) and (humi > 0) and (mqtt_init_code == 0)
+        selftest_ok = (a0_value > 0) and (temp > 0) and (humi > 0) and (mqtt_init_code == 0)
 
-        print("[SELFTEST] FINISH, OK="..tostring(M.selftest_ok))
+        print("[SELFTEST] FINISH, OK="..tostring(selftest_ok))
 
-        if M.selftest_ok or M.startup_attempts > STARTUP_MAX_ATTEMPTS then
-            print("unregistering self test alarm. attempts="..M.startup_attempts)
-            tmr.unregister(1)
+        if selftest_ok or startup_attempts > C.MAX_STARTUP_ATTEMPTS then
+            print("unregistering self test alarm. attempts="..startup_attempts..", selftest_ok="..tostring(selftest_ok))
+            tmr.unregister(C.TMRID_SELFTEST_FUNCTION)
         end
 
-        M.startup_attempts = M.startup_attempts+1
+        startup_attempts = startup_attempts+1
         
     end)
 end
@@ -62,10 +54,10 @@ end
     the ESP into deep sleep mode
 --]]
 function verify_operating_voltage(v)
-    print("[VOLT] verify_operating_voltage, current is "..v.."V, threshold is "..V_BAT_MIN.."V")
+    print("[VOLT] verify_operating_voltage, current is "..v.."V, threshold is "..C.BAT_LOW_VOLT_LIMIT.."V")
 
-    if v < V_BAT_MIN then
-        print("[VOLT] Voltage is too low. Scheduling sleep mode for "..LOW_VOLTAGE_SLEEP_SEC.."s")
+    if v < C.BAT_LOW_VOLT_LIMIT then
+        print("[VOLT] Voltage is too low. Scheduling sleep mode for "..C.LOW_VOLTAGE_SLEEP_SEC.."s")
 
         
         print("[VOLT] Setting ON low voltage alarm")
@@ -73,9 +65,9 @@ function verify_operating_voltage(v)
         triggered_low_voltage_alarm = 1
         ledhelper.blink_pattern_quick(200)
         
-        tmr.alarm(TMRID_SLEEP, 5000, tmr.ALARM_SINGLE, function()
-        
-            node.dsleep(LOW_VOLTAGE_SLEEP_SEC * 1000 * 1000)
+        tmr.alarm(C.TMRID_SLEEP_LOW_VOLTAGE, 5000, tmr.ALARM_SINGLE, function()
+            -- dsleep receives parameter in nanoseconds
+            node.dsleep(C.LOW_VOLTAGE_SLEEP_SEC * 1000 * 1000)
         end)
         
     elseif triggered_low_voltage_alarm == 0 then
@@ -89,14 +81,14 @@ end
 function main()
 
     print("[MAIN] SCHEDULED")
-    tmr.alarm(2, 4000, tmr.ALARM_AUTO, function()
+    tmr.alarm(C.TMRID_MAIN_FUNCTION, C.MAIN_SCHEDULE_INTERVAL_MS, tmr.ALARM_AUTO, function()
         print("[MAIN] Starting alligator")
-        if M.selftest_ok ~= true then
+        if selftest_ok ~= true then
             print("[MAIN] Delaying execution. self_test is not ok")
             
-            if M.startup_attempts > STARTUP_MAX_ATTEMPTS then
+            if startup_attempts > C.MAX_STARTUP_ATTEMPTS then
                 print("[MAIN] Aborting execution. Max. attempts reached. startup_attempts="..startup_attempts)
-                tmr.unregister(2)
+                tmr.unregister(C.TMRID_MAIN_FUNCTION)
             end
 
             return
@@ -137,17 +129,15 @@ end
 
 print("[STARTUP] Scheduling processes")
 
+print(C.TMRID_SELFTEST_FUNCTION)
 
+-- [[
 print("[STARTUP] SLEEPING")
 
 mqttcli.init_client()
 ledhelper.startup()
 selftest()
 main()
-
-
-
-
 
 -- conectar na wifi
 -- wifi.setmode(mode[, save]) -- save, default true (salva a config no flash)
@@ -157,4 +147,5 @@ main()
 
 -- listar config de wifi salva no flash
 --print(wifi.sta.getdefaultconfig())
+--]]
 
