@@ -1,12 +1,12 @@
 local M = {}
 
-dht11Pin=6
-TIMEOUT_ERR=-10,-11
-CHECKSUM_ERR=-20,-21
+DHT11_PIN=6
+TIMEOUT_ERR=-1
+CHECKSUM_ERR=-20
 
 
 function M.readdht11()
-    status, temp, humi, temp_dec, humi_dec = dht.read11(dht11Pin)
+    status, temp, humi, temp_dec, humi_dec = dht.read11(DHT11_PIN)
     if status == dht.OK then
         -- Float firmware using this example
         print("[DHT] Temperature:"..temp..";".."Humidity:"..humi)
