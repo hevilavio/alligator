@@ -36,12 +36,12 @@ local function register_blink_pattern(ms_led_on, times_to_blink)
             gpio.write(LED_PIN,gpio.HIGH)
 
             -- stop the current pattern and schedule it to start again 
-            print("[LED_HELPER] max blink times reached. ms_led_on="..ms_led_on..", times="..times_to_blink)
+            --print("[LED_HELPER] max blink times reached. ms_led_on="..ms_led_on..", times="..times_to_blink)
             tmr.unregister(C.TMRID_LED)
 
             -- [[
             tmr.alarm(C.TMRID_CALLBACK, MS_BETWEEN_PATTERN, tmr.ALARM_SINGLE, function()
-                print("[LED_HELPER] recheduling blinking. ms_led_on="..ms_led_on..", times="..times_to_blink)
+                --print("[LED_HELPER] recheduling blinking. ms_led_on="..ms_led_on..", times="..times_to_blink)
                 register_blink_pattern(ms_led_on, times_to_blink)
             end)
             --]]

@@ -1,11 +1,3 @@
---[[
-TODO:
-
-- random device_id on mqtt connection (same device id receives a 'disconnection' event when it re-connect
-- logging to flash memory
-- led error code
-
---]]
 
 local adc = require("adc_reader")
 local dht = require("dht11")
@@ -16,7 +8,7 @@ local C = require("constants")
 local triggered_low_voltage_alarm = 0
 local startup_attempts = 0
 local selftest_ok = false
-
+local error_count = 0
 
 function selftest()
     print("[SELFTEST] SCHEDULED")
@@ -27,7 +19,7 @@ function selftest()
         a0_value = adc.read_A0_volt()
         print("[SELFTEST] ADC A0 VOLT = "..a0_value)
         
-        temp, humi = dht.readdht11()
+        sensor_status, temp, humi = dht.readdht11()
         print("[SELFTEST] DHT11 TEMP = "..temp..", humi = "..humi)
 
         mqtt_init_code = mqttcli.client_init_code
@@ -56,7 +48,7 @@ function verify_battery_voltage(v)
 
         
         print("[VOLT] Setting ON the low voltage alarm")
-        mqttcli.pub("d721559/feeds/low-voltage-alarm", "ON")
+        mqttcli.pub_low_voltage_alarm_on()
 
         triggered_low_voltage_alarm = 1
         ledhelper.blink_pattern_quick(200)
@@ -70,8 +62,28 @@ function verify_battery_voltage(v)
         triggered_low_voltage_alarm = 1
         print("[VOLT] Setting OFF the low voltage alarm")
         
-        mqttcli.pub("d721559/feeds/low-voltage-alarm", "OFF")
+        mqttcli.pub_low_voltage_alarm_off()
     end
+end
+
+
+--[[
+    Verify how many times 
+
+--]]
+function verify_error_count(success_current_operation)
+    if not success_current_operation then
+        error_count = error_count + 1
+        print("[MAIN] Incrementing error_count, current value is "..error_count..", threshold is "..C.MAX_ERROR_COUNT_BEFORE_RESTART)
+    else
+        error_count = 0
+    end
+
+    if error_count > C.MAX_ERROR_COUNT_BEFORE_RESTART then
+        print("[MAIN] Reached max error_count value. Restarting....")
+        node.restart()
+    end
+
 end
 
 function main()
@@ -94,7 +106,7 @@ function main()
 
         verify_battery_voltage(adc.read_A0_volt())
 
-        print("[MAIN] Scheduling program lopp in interval="..C.PROGRAM_LOOP_SCHEDULE_INTERVAL_MS.."ms")
+        print("[MAIN] Scheduling program loop in interval="..C.PROGRAM_LOOP_SCHEDULE_INTERVAL_MS.."ms")
         
         ledhelper.normal_operation()
         
@@ -110,17 +122,22 @@ function main()
 end
 
 function program_loop()
+
     print("[PROGRAM_LOOP] Collecting snesor values")
 
     a0_value = adc.read_A0_volt()
-    temp, humi = dht.readdht11()
+    dht11_sensor_status, temp, humi = dht.readdht11()
 
     print("[PROGRAM_LOOP] Publishing to MQTT broker")
-    mqttcli.pub("d721559/feeds/dht11-temp", temp)
-    mqttcli.pub("d721559/feeds/dht11-hum", humi)
-    mqttcli.pub("d721559/feeds/bat-volt", a0_value)
+    
+    success_current_operation = true
+    and mqttcli.pub_temperature(temp)
+    and mqttcli.pub_humidity(humi)
+    and mqttcli.pub_bat_voltage(a0_value)
+    and dht11_sensor_status == 0 -- 0 means success on DHT_11 reading
     
     verify_battery_voltage(a0_value)
+    verify_error_count(success_current_operation)
     
     print("[PROGRAM_LOOP] End")
 end

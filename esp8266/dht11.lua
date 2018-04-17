@@ -1,8 +1,8 @@
 local M = {}
 
 DHT11_PIN=6
-TIMEOUT_ERR=-1
-CHECKSUM_ERR=-20
+TIMEOUT_ERR=-50
+CHECKSUM_ERR=-51
 
 
 function M.readdht11()
@@ -11,13 +11,13 @@ function M.readdht11()
         -- Float firmware using this example
         print("[DHT] Temperature:"..temp..";".."Humidity:"..humi)
     
-        return temp, humi
+        return status, temp, humi
     elseif status == dht.ERROR_CHECKSUM then
         print( "[DHT] Checksum error." )
-        return CHECKSUM_ERR, 0
+        return status, CHECKSUM_ERR, 0
     elseif status == dht.ERROR_TIMEOUT then
         print( "[DHT] timed out." )
-        return TIMEOUT_ERR, 0
+        return status, TIMEOUT_ERR, 0
     end
 end
 

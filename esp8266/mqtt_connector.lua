@@ -9,6 +9,9 @@ local MQTT_PORT = 1883
 local TOPIC_BASE = "d721559"
 
 local TOPIC_TEMP = TOPIC_BASE.."/feeds/dht11-temp"
+local TOPIC_HUM = TOPIC_BASE.."/feeds/dht11-hum"
+local TOPIC_VOLT = TOPIC_BASE.."/feeds/bat-volt"
+local TOPIC_LOW_VOLT_ALARM = TOPIC_BASE.."/feeds/low-voltage-alarm"
 
 local INIT_CODE_CONNECTED = 0
 local INIT_CODE_DISCONNECTED = 1
@@ -68,26 +71,40 @@ function M.init_client()
     handle_mqtt_error)
 end
 
----------------------------------
----- PUBLIC FUNCTIONS -----------
----------------------------------
-function M.pub(topic, val)
+function pub(topic, val)
     if M.client_init_code ~= INIT_CODE_CONNECTED then
         print("client not initialized properly, call init_client(). code="..tostring(M.client_init_code))
         return false 
     end
 
-    print("publishing ["..val.."] to ["..topic.."]")
+    print("[MQTT] publishing ["..val.."] to ["..topic.."]")
     ret = client:publish(topic, val, 0, 0)
-    print("publish success="..tostring(ret))
+    print("[MQTT] publish success="..tostring(ret))
     return ret
 end
 
+---------------------------------
+---- PUBLIC FUNCTIONS -----------
+---------------------------------
+function M.pub_temperature(temperature)
+    return pub(TOPIC_TEMP, temperature)
+end
 
--- IMPROVMENT
--- Method init_client should wait for connection established. So, it can be called from outside
--- modules
---M.init_client()
+function M.pub_humidity(humidity)
+    return pub(TOPIC_HUM, humidity)
+end
+
+function M.pub_bat_voltage(volt)
+    return pub(TOPIC_VOLT, volt)
+end
+
+function M.pub_low_voltage_alarm_on()
+    return pub(TOPIC_LOW_VOLT_ALARM, "ON")
+end
+
+function M.pub_low_voltage_alarm_off()
+    return pub(TOPIC_LOW_VOLT_ALARM, "OFF")
+end
 
 --[[
 tmr.alarm(1, 3000, tmr.ALARM_SINGLE, function()
